@@ -448,8 +448,10 @@ GuideCamera *GuideCamera::Factory(const wxString& choice)
         }
 #endif
 #if defined (QHY_CAMERA)
-        else if (choice == _T("QHY Camera"))
+        else if (choice == _T("QHY Camera")){
+            DEBUG_INFO("build QHYCAMERA CLASS");
             pReturn = QHYCameraFactory::MakeQHYCamera();
+        }
 #endif
 #if defined(ALTAIR)
         else if (choice == _T("Altair Camera"))

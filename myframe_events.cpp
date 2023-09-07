@@ -379,7 +379,7 @@ void MyFrame::OnIdle(wxIdleEvent& WXUNUSED(event))
 void MyFrame::StartLoopingInteractive(const wxString& context)
 {
     Debug.Write(wxString::Format("StartLoopingInteractive: %s\n", context));
-
+    DEBUG_INFO("QHY TEST");
     if (!pCamera || !pCamera->Connected)
     {
         Debug.Write(_T("Camera not connected\n"));
@@ -503,6 +503,7 @@ void MyFrame::OnExposeComplete(usImage *pNewFrame, bool err)
             CheckDarkFrameGeometry();
         }
 
+        //image route
         pGuider->UpdateGuideState(pNewFrame, !m_continueCapturing);
         pNewFrame = NULL; // the guider owns it now
 

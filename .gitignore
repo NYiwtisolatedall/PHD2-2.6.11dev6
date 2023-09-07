@@ -2,3 +2,5 @@ TAGS
 /tmp*
 /build*
 /BUILD*
+
+.vscode/*

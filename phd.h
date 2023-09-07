@@ -77,6 +77,8 @@
 #include <math.h>
 #include <stdarg.h>
 
+#define DEBUG_INFO(fmt, args...) printf("\033[33m[%s:%d]\033[0m "#fmt"\r\n", __func__, __LINE__, ##args)   //by QIU
+
 #define APPNAME _T("PHD2 Guiding")
 #define PHDVERSION _T("2.6.11")
 #define PHDSUBVER _T("dev6")

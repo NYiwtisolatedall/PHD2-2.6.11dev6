@@ -1181,6 +1181,7 @@ void GuiderMultiStar::OnPaint(wxPaintEvent& event)
 {
     wxAutoBufferedPaintDC dc(this);
     wxMemoryDC memDC;
+    GuideRealTimeInfoToShm g;
 
     try
     {
@@ -1210,6 +1211,8 @@ void GuiderMultiStar::OnPaint(wxPaintEvent& event)
         // show in-use secondary stars
         if (m_multiStarMode && m_guideStars.size() > 1)
         {
+            g.MultiStarNumber = m_guideStars.size();
+
             if (m_primaryStar.WasFound())
                 dc.SetPen(wxPen(wxColour(0, 255, 0), 1, wxPENSTYLE_SOLID));
             else
@@ -1226,13 +1229,25 @@ void GuiderMultiStar::OnPaint(wxPaintEvent& event)
                  it != m_guideStars.end(); ++it)
             {
                 wxPoint pt((int)(it->referencePoint.X * m_scaleFactor), (int)(it->referencePoint.Y * m_scaleFactor));
+
+                if(starsPlotted < 32){                //shared memory multistar can only store 32 stars.(actually 31 stars, start from starsPlotted=1)
+                    g.MultiStarX[starsPlotted]=(uint16_t)it->referencePoint.X;  //QHY MOD
+                    g.MultiStarY[starsPlotted]=(uint16_t)it->referencePoint.Y;  //QHY MOD
+                }
+
                 dc.DrawCircle(pt, 6);
                 starsPlotted++;
                 if (starsPlotted == m_maxStars)
                     break;
             }
+
+            g.MultiStarNumber = starsPlotted;  //QHY MOD
+
             if (!m_stabilizing)
                 m_lastStarsUsed = m_starsUsed;
+        }
+        else{
+            g.MultiStarNumber=0;
         }
 
         GUIDER_STATE state = GetState();
@@ -1245,12 +1260,14 @@ void GuiderMultiStar::OnPaint(wxPaintEvent& event)
             else
                 dc.SetPen(wxPen(wxColour(230,130,30), 1, wxPENSTYLE_DOT));
             DrawBox(dc, m_primaryStar, m_searchRegion, m_scaleFactor);
+            g.showLockedCross=false;//QHY MOD
         }
         else if (state == STATE_CALIBRATING_PRIMARY || state == STATE_CALIBRATING_SECONDARY)
         {
             // in the calibration process
             dc.SetPen(wxPen(wxColour(32,196,32), 1, wxPENSTYLE_SOLID));  // Draw the box around the star
             DrawBox(dc, m_primaryStar, m_searchRegion, m_scaleFactor);
+            g.showLockedCross=true;//QHY MOD
         }
         else if (state == STATE_CALIBRATED || state == STATE_GUIDING)
         {
@@ -1260,7 +1277,23 @@ void GuiderMultiStar::OnPaint(wxPaintEvent& event)
             else
                 dc.SetPen(wxPen(wxColour(230,130,30), 1, wxPENSTYLE_DOT));
             DrawBox(dc, m_primaryStar, m_searchRegion, m_scaleFactor);
+            g.showLockedCross=true;//QHY MOD
         }
+        else{
+            g.showLockedCross=false;//QHY MOD
+        }
+ 
+        g.isSelected         = FoundStar;          //QHY MOD
+        g.SelectedStarX      = m_primaryStar.X;    //QHY MOD
+        g.SelectedStarY      = m_primaryStar.Y;    //QHY MOD
+        
+        const PHD_Point &lockPos = LockPosition();//QHY MOD
+                  
+        g.LockedPositionX    = lockPos.X;//QHY MOD
+        g.LockedPositionY    = lockPos.Y;//QHY MOD
+
+        pFrame->CopyGuiderRealTimeDataToShm(g);     //QHY MOD  , it is not very good to call main function in a class directly
+
     }
     catch (const wxString& Msg)
     {

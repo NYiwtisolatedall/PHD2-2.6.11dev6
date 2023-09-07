@@ -195,6 +195,7 @@ void INDIConfig::UpdateControlStates()
 
         if (dev_type == INDI_TYPE_CAMERA)
         {
+            // dev->SetValue(INDIDevName);
             ccd->Append(_("Main"));
             ccd->Append(_("Secondary"));
             ccd->SetSelection(INDIDevCCD);
@@ -312,7 +313,9 @@ void INDIConfig::Connect()
     port->GetLineText(0).ToLong(&INDIport);
     setServer(INDIhost.mb_str(wxConvUTF8), INDIport);
 
+    DEBUG_INFO("config_indi.cpp | connect button 1");
     connectServer();
+    DEBUG_INFO("config_indi.cpp | connect button 2");  
 }
 
 void INDIConfig::Disconnect()
@@ -346,9 +349,12 @@ void INDIConfig::IndiServerDisconnected(int exit_code)
 
 void INDIConfig::newDevice(INDI::BaseDevice *dp)
 {
+    DEBUG_INFO("config_indi.cpp | new Device");
+
     const char *devname = dp->getDeviceName();
 
     Debug.Write(wxString::Format("INDIConfig: newDevice %s\n", devname));
+    DEBUG_INFO("config_indi.cpp | newDevice | newDevice %s",devname);
 
     dev->Append(devname);
     if (devname == INDIDevName)
@@ -437,6 +443,8 @@ void INDIConfig::SetSettings()
 {
     host->WriteText(INDIhost);
     port->WriteText(wxString::Format("%ld", INDIport));
+    // dev->SetValue(INDIDevName);
+    // okBtn->Enable(true);
 }
 
 void INDIConfig::SaveSettings()

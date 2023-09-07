@@ -47,7 +47,10 @@
 
 #include <libindi/basedevice.h>
 #include <libindi/indiproperty.h>
+#include <thread>
 
+#include <iostream>
+#include <mutex>
 
 class CapturedFrame
 {
@@ -174,6 +177,8 @@ protected:
     void IndiServerDisconnected(int exit_code) override;
 
 public:
+    std::mutex sendMutex;
+
     CameraINDI();
     ~CameraINDI();
     bool    Connect(const wxString& camId) override;
@@ -287,6 +292,7 @@ void CameraINDI::updateLastFrame(IBLOB *blob)
 void CameraINDI::CheckState()
 {
     // Check if the device has all the required properties for our usage.
+    DEBUG_INFO("cam_indi.cpp | CheckState | modal=%d ready=%d",modal,ready);
     if (has_blob && camera_device && Connected && (expose_prop || video_prop))
     {
         if (!ready)
@@ -302,6 +308,7 @@ void CameraINDI::CheckState()
 
 void CameraINDI::newDevice(INDI::BaseDevice *dp)
 {
+    DEBUG_INFO("cam_indi.cpp | new Device");
     if (strcmp(dp->getDeviceName(), INDICameraName.mb_str(wxConvUTF8)) == 0)
     {
         // The camera object
@@ -345,7 +352,7 @@ void CameraINDI::newSwitch(ISwitchVectorProperty *svp)
 void CameraINDI::newMessage(INDI::BaseDevice *dp, int messageID)
 {
     // we go here every time the camera driver send a message
-
+    DEBUG_INFO("%s",dp->messageQueue(messageID).data());
     if (INDIConfig::Verbose())
         Debug.Write(wxString::Format("INDI Camera Received message: %s\n", dp->messageQueue(messageID)));
 }
@@ -601,13 +608,25 @@ void CameraINDI::newProperty(INDI::Property *property)
 
 bool CameraINDI::Connect(const wxString& camId)
 {
+
+    INDICameraName =camId;  //QHY MOD
+    wxString choice = camId;    //return the selected item from the list box
+    std::string aaa = std::string(choice.ToStdString());
+    DEBUG_INFO("cam_indi | Connect xxx1 | %s",aaa.c_str());
+
+    pConfig->Profile.SetString("/indi/INDIcam", camId);
+
     // If not configured open the setup dialog
     if (INDICameraName == wxT("INDI Camera"))
     {
         CameraSetup();
+        DEBUG_INFO("cam_indi | Connect | CameraSetup()");
     }
 
     Debug.Write(wxString::Format("INDI Camera connecting to device [%s]\n", INDICameraName));
+
+    aaa = std::string(INDICameraName.ToStdString());
+    DEBUG_INFO("cam_indi | Connect xxx2 | %s",aaa.c_str());
 
     // define server to connect to.
     setServer(INDIhost.mb_str(wxConvUTF8), INDIport);
@@ -656,7 +675,7 @@ bool CameraINDI::ConnectToDriver(RunInBg *r)
     // wait for the device port property
 
     wxLongLong msec = wxGetUTCTimeMillis();
-
+    DEBUG_INFO("cam_indi.cpp | ConnectToDriver | start");
     // Connect the camera device
     while (!connection_prop && wxGetUTCTimeMillis() - msec < 15 * 1000)
     {
@@ -665,7 +684,7 @@ bool CameraINDI::ConnectToDriver(RunInBg *r)
             modal = false;
             return false;
         }
-
+        DEBUG_INFO("cam_indi.cpp | ConnectToDriver | %d",wxGetUTCTimeMillis() - msec);
         wxMilliSleep(20);
     }
     if (!connection_prop)
@@ -675,7 +694,11 @@ bool CameraINDI::ConnectToDriver(RunInBg *r)
         return false;
     }
 
+    DEBUG_INFO("cam_indi.cpp | ConnectToDriver | 1 %d",modal);
     connectDevice(INDICameraName.mb_str(wxConvUTF8));
+    DEBUG_INFO("cam_indi.cpp | ConnectToDriver | 2 %d",modal);
+    CheckState();  //add by QHY
+    CheckState();  //add by QHY
 
     msec = wxGetUTCTimeMillis();
     while (modal && wxGetUTCTimeMillis() - msec < 30 * 1000)
@@ -692,7 +715,7 @@ bool CameraINDI::ConnectToDriver(RunInBg *r)
     {
         r->SetErrorMsg(_("Connection timed-out"));
     }
-
+    DEBUG_INFO("cam_indi.cpp | ConnectToDriver | 3 %d",modal);
     modal = false;
     return ready;
 }
@@ -700,7 +723,7 @@ bool CameraINDI::ConnectToDriver(RunInBg *r)
 void CameraINDI::IndiServerConnected()
 {
     // After connection to the server
-
+    DEBUG_INFO("cam_indi.cpp | IndiserverConnected | connect5?");
     struct ConnectInBg : public ConnectCameraInBg
     {
         CameraINDI *cam;
@@ -772,6 +795,8 @@ void CameraINDI::CameraDialog()
 
 void CameraINDI::CameraSetup()
 {
+    GearDialog *pGearDialog;
+    DEBUG_INFO("cam_indi.cpp | CameraSetup()");
     // show the server and device configuration
     INDIConfig indiDlg(wxGetApp().GetTopWindow(), _("INDI Camera Selection"), INDI_TYPE_CAMERA);
     indiDlg.INDIhost = INDIhost;
@@ -780,10 +805,15 @@ void CameraINDI::CameraSetup()
     indiDlg.INDIDevCCD = INDICameraCCD;
     indiDlg.INDIForceVideo = INDICameraForceVideo;
     indiDlg.INDIForceExposure = INDICameraForceExposure;
+
+    std::string aaa = std::string(INDICameraName.ToStdString());
+    DEBUG_INFO("cam_indi.cpp | CameraSetup() | INDICameraName %s",aaa.c_str());
+
     // initialize with actual values
     indiDlg.SetSettings();
     // try to connect to server
     indiDlg.Connect();
+    DEBUG_INFO("cam_indi.cpp | connect 3");
     if (indiDlg.ShowModal() == wxID_OK)
     {
         // if OK save the values to the current profile
@@ -791,6 +821,10 @@ void CameraINDI::CameraSetup()
         INDIhost = indiDlg.INDIhost;
         INDIport = indiDlg.INDIport;
         INDICameraName = indiDlg.INDIDevName;
+        // if(pGearDialog->glCameraIdFromShm != "INDI Camera")
+        // {
+        //     INDICameraName = pGearDialog->glCameraIdFromShm;
+        // }
         INDICameraCCD = indiDlg.INDIDevCCD;
         INDICameraForceVideo = indiDlg.INDIForceVideo;
         INDICameraForceExposure = indiDlg.INDIForceExposure;
@@ -1254,6 +1288,49 @@ bool CameraINDI::ST4HasNonGuiMove()
 
 bool CameraINDI::ST4PulseGuideScope(int direction, int duration)
 {
+    DEBUG_INFO("ST4PulseGuideScope_indi %d,%d",direction,duration);
+    
+   std::lock_guard<std::mutex> lock(sendMutex);
+    // 记录开始时间点
+    auto startTime = std::chrono::steady_clock::now();
+
+    // 循环等待直到 ControlStatus 变为 0 或超过 5 秒
+    while (pFrame->ControlStatus != 0)
+    {
+        // 计算经过的时间
+        auto currentTime = std::chrono::steady_clock::now();
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime).count();
+        // 如果超过 5 秒，强制将 ControlStatus 设置为 0
+        if (elapsedTime >= 5)
+        {
+            pFrame->ControlStatus = 0;
+            break; // 跳出循环
+        }
+        DEBUG_INFO("ST4PulseGuideScope_INDI_Status %d",pFrame->ControlStatus);
+        // 添加适当的延迟
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    DEBUG_INFO("ST4PulseGuideScope_INDI_Status %d",pFrame->ControlStatus);
+
+    pFrame->sdk_direction=direction;
+    pFrame->sdk_duration=duration;
+
+    unsigned int mem_offset=1024;
+ 
+    mem_offset=mem_offset+sizeof(unsigned int); 
+    mem_offset=mem_offset+sizeof(unsigned int); 
+    mem_offset=mem_offset+sizeof(unsigned char); 
+
+    int ControlInstruct = (pFrame->ControlNum << 24) | (pFrame->sdk_direction << 12) | pFrame->sdk_duration;
+
+    memcpy(pFrame->qBuffer+mem_offset,&ControlInstruct,sizeof(int));
+ 	mem_offset=mem_offset+sizeof(int); 
+    pFrame->getTimeNow(pFrame->ControlNum);
+    DEBUG_INFO("ST4PulseGuideScope_INDI %d,%d,%d",pFrame->ControlNum,direction,duration);
+
+    pFrame->ControlNum++;
+    pFrame->ControlStatus = 1;
+
     switch (direction) {
     case EAST:
     case WEST:
