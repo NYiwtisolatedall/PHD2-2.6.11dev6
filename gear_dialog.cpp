@@ -1062,10 +1062,13 @@ void GearDialog::SelectedCameraIDFromShm(wxString name)
     //  pConfig->Profile.SetString("/indi/INDIcam", glCameraIdFromShm);
     //  pConfig->dev->SetValue(glCameraIdFromShm);
     //  INDIConfig::dev->SetValue(glCameraIdFromShm);
-     DoConnectCamera(false);
+//  DoConnectCamera(false);
     //  pConfig->Profile.SetString("/indi/INDIcam", glCameraIdFromShm);
-     wxString errMsg;
-     ConnectAll(&errMsg);
+
+    // wxString errMsg;
+    // ConnectAll(&errMsg);
+    wxCommandEvent dummyEvent;
+    OnButtonConnectAll(dummyEvent);
 }
 
 void GearDialog::OnButtonSelectCamera(wxCommandEvent& event)
@@ -1524,13 +1527,14 @@ void GearDialog::OnButtonSetupAuxScope(wxCommandEvent& event)
 void GearDialog::OnButtonConnectScope(wxCommandEvent& event)
 {
     Debug.Write("gear_dialog: OnButtonConnectScope\n");
-
+    int errNum = 0;
     try
     {
         // m_pScope is NULL when scope selection is "None"
 
         if (m_pScope && m_pScope->IsConnected())
         {
+            errNum = 1;
             throw THROW_INFO("OnButtonConnectScope: called when connected");
         }
 
@@ -1542,6 +1546,7 @@ void GearDialog::OnButtonConnectScope(wxCommandEvent& event)
 
             if (m_pScope->Connect())
             {
+                errNum = 2;
                 throw THROW_INFO("OnButtonConnectScope: connect failed");
             }
 
@@ -1549,6 +1554,7 @@ void GearDialog::OnButtonConnectScope(wxCommandEvent& event)
             {
                 m_pScope->Disconnect();
                 wxMessageBox(wxString::Format(_("Mount does not support the required PulseGuide interface"), _("Error")));
+                errNum = 3;
                 throw THROW_INFO("OnButtonConnectScope: PulseGuide commands not supported");
             }
 
@@ -1564,6 +1570,8 @@ void GearDialog::OnButtonConnectScope(wxCommandEvent& event)
     }
     catch (const wxString& Msg)
     {
+        DEBUG_INFO("Why connect failed ? |%d ", errNum);
+
         POSSIBLY_UNUSED(Msg);
         pFrame->StatusMsg(_("Mount Connect Failed"));
         pFrame->UpdateStatusBarStateLabels();
