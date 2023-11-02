@@ -782,6 +782,8 @@ void MyFrame::CopyGuideErrorDataToShm(GuideErrorInfoToShm g)
     mem_offset = mem_offset + sizeof(double);
     memcpy(qBuffer + mem_offset, &StarLostAlert, sizeof(bool));
     mem_offset = mem_offset + sizeof(bool);
+    memcpy(qBuffer + mem_offset, &InGuiding, sizeof(bool));
+    mem_offset = mem_offset + sizeof(bool);
 
     copyIndicator = 0x02;
     qBuffer[copyIndicatorAddress] = copyIndicator;
@@ -1853,7 +1855,7 @@ void MyFrame::OnRequestMountMove(wxCommandEvent& evt)
 void MyFrame::OnStatusBarTimerEvent(wxTimerEvent& evt)
 {
     if (pGuider->IsGuiding())
-        m_statusbar->StatusMsg(_("Guiding"));
+        m_statusbar->StatusMsg(_("Guiding..."));
     else if (CaptureActive)
         m_statusbar->StatusMsg(_("Looping"));
     else
@@ -2379,6 +2381,7 @@ bool MyFrame::StartLooping()
         }
 
         StatusMsg(_("Looping"));
+        InGuiding = false;
         StartCapturing();
     }
     catch (const wxString& Msg)
@@ -2703,7 +2706,9 @@ bool MyFrame::SetDitherRaOnly(bool ditherRaOnly)
 
 void MyFrame::NotifyGuidingStarted()
 {
-    StatusMsg(_("Guiding"));
+    StatusMsg(_("Guiding-"));
+
+    InGuiding = true;
 
     m_guidingStarted = wxDateTime::UNow();
     m_guidingElapsed.Start();
@@ -2722,6 +2727,8 @@ void MyFrame::NotifyGuidingStopped()
 {
     assert(!pMount || !pMount->IsBusy());
     assert(!pSecondaryMount || !pSecondaryMount->IsBusy());
+
+    InGuiding = false;
 
     if (pMount)
         pMount->NotifyGuidingStopped();

@@ -319,6 +319,7 @@ public:
     wxSize m_prevDarkFrameSize;
 
     bool StarLostAlert;
+    bool InGuiding = false;
     char direction_;
     int step_;
     double dist_;

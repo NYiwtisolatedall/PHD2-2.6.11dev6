@@ -412,6 +412,7 @@ void MyFrame::FinishStop(void)
     ResetAutoExposure();
     UpdateButtonsStatus();
     StatusMsg(_("Stopped."));
+    InGuiding = false;
     PhdController::AbortController("Stopped capturing");
 }
 
